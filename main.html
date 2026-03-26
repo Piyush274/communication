@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Radar Interference Simulation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+  :root {
+    --bg:#050810;--surface:#0a0f1e;--surface2:#0f1628;--border:#1a2444;
+    --accent:#00d4ff;--accent2:#ff3f6c;--accent3:#39ff7a;--accent4:#ffaa00;
+    --text:#e0eaff;--text-muted:#5a7099;--text-dim:#8899bb;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;min-height:100vh;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,212,255,0.012) 2px,rgba(0,212,255,0.012) 4px);pointer-events:none;z-index:1000;}
+  header{padding:1.2rem 2rem 0.8rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:1rem;}
+  header h1{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:var(--accent);letter-spacing:-0.02em;text-shadow:0 0 25px rgba(0,212,255,0.5);}
+  header p{font-size:0.62rem;color:var(--text-muted);margin-top:2px;letter-spacing:0.07em;text-transform:uppercase;}
+  .status{display:flex;gap:1.2rem;align-items:center;font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--accent3);box-shadow:0 0 8px var(--accent3);animation:blink 2s infinite;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+  .tabs{display:flex;padding:0 2rem;border-bottom:1px solid var(--border);}
+  .tab{background:none;border:none;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:0.68rem;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;padding:0.8rem 1.2rem;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;}
+  .tab:hover{color:var(--text-dim);}
+  .tab.on{color:var(--accent);border-bottom-color:var(--accent);text-shadow:0 0 12px rgba(0,212,255,0.5);}
+  .tab sup{font-size:0.5rem;background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.25);border-radius:3px;padding:1px 4px;margin-left:5px;color:var(--accent);}
+  .panel{display:none;}.panel.on{display:flex;height:calc(100vh - 118px);min-height:580px;}
+  .ctrl{width:270px;flex-shrink:0;border-right:1px solid var(--border);padding:1.2rem;overflow-y:auto;background:var(--surface);}
+  .ctrl::-webkit-scrollbar{width:3px;}.ctrl::-webkit-scrollbar-thumb{background:var(--border);}
+  .sec{margin-bottom:1.3rem;padding-bottom:1.3rem;border-bottom:1px solid var(--border);}
+  .sec:last-child{border:none;margin-bottom:0;}
+  .sec-label{font-size:0.58rem;text-transform:uppercase;letter-spacing:0.13em;color:var(--text-muted);margin-bottom:0.8rem;display:flex;align-items:center;gap:6px;}
+  .sec-label::after{content:'';flex:1;height:1px;background:var(--border);}
+  .row{margin-bottom:0.8rem;}
+  .row label{display:flex;justify-content:space-between;font-size:0.62rem;color:var(--text-dim);margin-bottom:3px;}
+  .row label span{color:var(--accent);font-weight:600;}
+  input[type=range]{width:100%;-webkit-appearance:none;height:2px;background:var(--border);border-radius:2px;outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 0 7px rgba(0,212,255,0.6);}
+  select{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:0.62rem;padding:5px 7px;border-radius:4px;outline:none;cursor:pointer;}
+  .tog-row{display:flex;align-items:center;justify-content:space-between;font-size:0.62rem;color:var(--text-dim);margin-bottom:0.45rem;}
+  .tog{width:30px;height:15px;background:var(--border);border-radius:8px;position:relative;cursor:pointer;transition:background 0.2s;border:none;flex-shrink:0;}
+  .tog.on{background:var(--accent);}
+  .tog::after{content:'';position:absolute;top:2px;left:2px;width:11px;height:11px;background:white;border-radius:50%;transition:transform 0.2s;}
+  .tog.on::after{transform:translateX(15px);}
+  .run{width:100%;background:linear-gradient(135deg,rgba(0,212,255,0.12),rgba(0,212,255,0.04));border:1px solid var(--accent);color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.68rem;font-weight:700;letter-spacing:0.13em;text-transform:uppercase;padding:9px;border-radius:4px;cursor:pointer;transition:all 0.2s;margin-top:0.4rem;}
+  .run:hover{background:rgba(0,212,255,0.18);box-shadow:0 0 18px rgba(0,212,255,0.28);}
+  .run:active{transform:scale(0.98);}
+  .viz{flex:1;padding:1.2rem;overflow-y:auto;background:var(--bg);}
+  .viz::-webkit-scrollbar{width:3px;}.viz::-webkit-scrollbar-thumb{background:var(--border);}
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:0.9rem;}
+  .mbox{background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:0.65rem 0.85rem;}
+  .mlabel{font-size:0.56rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:3px;}
+  .mval{font-size:1.1rem;font-weight:700;color:var(--accent);font-family:'Syne',sans-serif;}
+  .mval.r{color:var(--accent2);}.mval.g{color:var(--accent3);}.mval.a{color:var(--accent4);}
+  .info{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:4px;padding:0.65rem 0.9rem;font-size:0.62rem;color:var(--text-dim);line-height:1.75;margin-bottom:0.9rem;}
+  .info.r{border-left-color:var(--accent2);}.info.g{border-left-color:var(--accent3);}.info.a{border-left-color:var(--accent4);}
+  .info strong{color:var(--text);}
+  .cgrid{display:grid;gap:0.75rem;}
+  .cgrid.c2{grid-template-columns:1fr 1fr;}.cgrid.c3{grid-template-columns:1fr 1fr 1fr;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:5px;overflow:hidden;}
+  .card-hdr{padding:6px 10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--surface2);}
+  .card-title{font-size:0.58rem;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-dim);}
+  .badge{font-size:0.52rem;padding:2px 5px;border-radius:3px;text-transform:uppercase;letter-spacing:0.07em;}
+  .bc{background:rgba(0,212,255,0.12);color:var(--accent);border:1px solid rgba(0,212,255,0.28);}
+  .br{background:rgba(255,63,108,0.12);color:var(--accent2);border:1px solid rgba(255,63,108,0.28);}
+  .bg{background:rgba(57,255,122,0.12);color:var(--accent3);border:1px solid rgba(57,255,122,0.28);}
+  .ba{background:rgba(255,170,0,0.12);color:var(--accent4);border:1px solid rgba(255,170,0,0.28);}
+  canvas{display:block;width:100%;}
+  .legend{display:flex;gap:0.9rem;flex-wrap:wrap;font-size:0.6rem;color:var(--text-dim);margin-top:0.5rem;}
+  .li{display:flex;align-items:center;gap:4px;}
+  .ld{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>RADAR INTERFERENCE SIM v2.0</h1>
+    <p>Advanced FMCW Multi-Radar Mitigation &nbsp;·&nbsp; 77 GHz Automotive Band</p>
+  </div>
+  <div class="status">
+    <div class="dot"></div><span>SYSTEM ONLINE</span>
+    <span style="color:var(--text-dim)">fs=100MHz</span>
+    <span style="color:var(--text-dim)">fc=77GHz</span>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab on" onclick="sw('rdm',this)">2D Range-Doppler Map<sup>NEW</sup></button>
+  <button class="tab" onclick="sw('cfar',this)">OS-CFAR Adaptive<sup>NEW</sup></button>
+  <button class="tab" onclick="sw('ghost',this)">Ghost Target Sim<sup>NEW</sup></button>
+</div>
+
+<!-- TAB 1: RDM -->
+<div id="tab-rdm" class="panel on">
+  <div class="ctrl">
+    <div class="sec">
+      <div class="sec-label">Scene</div>
+      <div class="row"><label>Target Range (m)<span id="v-rr">30</span></label><input type="range" id="rr" min="10" max="80" value="30" step="1" oninput="lbl('v-rr',this.value);runRDM()"></div>
+      <div class="row"><label>Target Velocity (m/s)<span id="v-rv">15</span></label><input type="range" id="rv" min="-30" max="30" value="15" step="1" oninput="lbl('v-rv',this.value);runRDM()"></div>
+      <div class="row"><label>Chirps (frames)<span id="v-rc">32</span></label><input type="range" id="rc" min="8" max="64" value="32" step="8" oninput="lbl('v-rc',this.value);runRDM()"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-label">Interference</div>
+      <div class="row"><label>SIR (dB)<span id="v-rs">-5</span></label><input type="range" id="rs" min="-20" max="10" value="-5" step="1" oninput="lbl('v-rs',this.value);runRDM()"></div>
+      <div class="row"><label>Slope Δ (MHz/µs)<span id="v-rd">0.2</span></label><input type="range" id="rd" min="0.05" max="2.0" value="0.2" step="0.05" oninput="lbl('v-rd',this.value);runRDM()"></div>
+      <div class="row"><label>Chirps Hit<span id="v-rh">12</span></label><input type="range" id="rh" min="1" max="32" value="12" step="1" oninput="lbl('v-rh',this.value);runRDM()"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-label">2D Mitigation</div>
+      <div class="tog-row"><span>Streak Detection</span><button class="tog on" id="t-str" onclick="tog(this);runRDM()"></button></div>
+      <div class="tog-row"><span>2D Zeroing</span><button class="tog on" id="t-zer" onclick="tog(this);runRDM()"></button></div>
+      <div class="tog-row"><span>Doppler Interpolation</span><button class="tog" id="t-int" onclick="tog(this);runRDM()"></button></div>
+      <div class="row"><label>Threshold (σ)<span id="v-rt">3.0</span></label><input type="range" id="rt" min="1.0" max="6.0" value="3.0" step="0.5" oninput="lbl('v-rt',this.value);runRDM()"></div>
+    </div>
+    <button class="run" onclick="runRDM()">▶ RUN</button>
+  </div>
+  <div class="viz">
+    <div class="metrics">
+      <div class="mbox"><div class="mlabel">Target Range</div><div class="mval" id="m-rr">—</div></div>
+      <div class="mbox"><div class="mlabel">Velocity</div><div class="mval a" id="m-rv">—</div></div>
+      <div class="mbox"><div class="mlabel">Streak Bins</div><div class="mval r" id="m-rs">—</div></div>
+      <div class="mbox"><div class="mlabel">SNR Gain</div><div class="mval g" id="m-rn">—</div></div>
+    </div>
+    <div class="info">
+      <strong>2D RDM Streak Mitigation:</strong> 1D time-domain zeroing destroys Doppler coherence across chirps. Instead, this module first builds the full Range-Doppler Map (2D FFT). Interference appears as <strong>vertical streaks</strong> — columns with abnormally high mean energy across all Doppler bins. CFAR-style column statistics detect these streaks, then 2D zeroing or Doppler-aware interpolation removes them while preserving the target cell at its true (range, velocity) location.
+    </div>
+    <div class="cgrid c2">
+      <div class="card"><div class="card-hdr"><span class="card-title">RDM Before Mitigation</span><span class="badge br">CORRUPTED</span></div><canvas id="c-rb" height="210"></canvas></div>
+      <div class="card"><div class="card-hdr"><span class="card-title">RDM After 2D Mitigation</span><span class="badge bg">CLEANED</span></div><canvas id="c-ra" height="210"></canvas></div>
+    </div>
+    <div class="cgrid c2" style="margin-top:0.75rem">
+      <div class="card"><div class="card-hdr"><span class="card-title">Range Profile (Doppler integrated)</span><span class="badge bc">FFT</span></div><canvas id="c-rp" height="160"></canvas></div>
+      <div class="card"><div class="card-hdr"><span class="card-title">2D Interference Mask</span><span class="badge ba">DETECTION</span></div><canvas id="c-rm" height="160"></canvas></div>
+    </div>
+    <div class="legend">
+      <div class="li"><div class="ld" style="background:var(--accent2)"></div>Before mitigation</div>
+      <div class="li"><div class="ld" style="background:var(--accent3)"></div>After 2D mitigation</div>
+      <div class="li"><div class="ld" style="background:var(--accent4)"></div>Target marker</div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 2: OS-CFAR -->
+<div id="tab-cfar" class="panel">
+  <div class="ctrl">
+    <div class="sec">
+      <div class="sec-label">Environment</div>
+      <div class="row"><label>Interferers<span id="v-cn">3</span></label><input type="range" id="cn" min="1" max="8" value="3" step="1" oninput="lbl('v-cn',this.value);runCFAR()"></div>
+      <div class="row"><label>Min SIR (dB)<span id="v-cs">-15</span></label><input type="range" id="cs" min="-25" max="0" value="-15" step="1" oninput="lbl('v-cs',this.value);runCFAR()"></div>
+      <div class="row"><label>Noise Floor (dB)<span id="v-cn2">-80</span></label><input type="range" id="cn2" min="-100" max="-50" value="-80" step="2" oninput="lbl('v-cn2',this.value);runCFAR()"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-label">CA-CFAR</div>
+      <div class="row"><label>Ref Window<span id="v-cw">16</span></label><input type="range" id="cw" min="4" max="32" value="16" step="2" oninput="lbl('v-cw',this.value);runCFAR()"></div>
+      <div class="row"><label>Guard Cells<span id="v-cg">4</span></label><input type="range" id="cg" min="1" max="8" value="4" step="1" oninput="lbl('v-cg',this.value);runCFAR()"></div>
+      <div class="row"><label>Pfa (×10⁻⁴)<span id="v-cp">1.0</span></label><input type="range" id="cp" min="0.1" max="5.0" value="1.0" step="0.1" oninput="lbl('v-cp',this.value);runCFAR()"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-label">OS-CFAR</div>
+      <div class="row"><label>Rank k (%)<span id="v-cr">75</span></label><input type="range" id="cr" min="50" max="95" value="75" step="5" oninput="lbl('v-cr',this.value);runCFAR()"></div>
+      <div class="row"><label>Scale α<span id="v-ca">2.5</span></label><input type="range" id="ca" min="1.0" max="6.0" value="2.5" step="0.1" oninput="lbl('v-ca',this.value);runCFAR()"></div>
+    </div>
+    <button class="run" onclick="runCFAR()">▶ RUN</button>
+  </div>
+  <div class="viz">
+    <div class="metrics">
+      <div class="mbox"><div class="mlabel">CA Detections</div><div class="mval r" id="m-cad">—</div></div>
+      <div class="mbox"><div class="mlabel">CA False Alarms</div><div class="mval r" id="m-caf">—</div></div>
+      <div class="mbox"><div class="mlabel">OS Detections</div><div class="mval g" id="m-osd">—</div></div>
+      <div class="mbox"><div class="mlabel">OS False Alarms</div><div class="mval g" id="m-osf">—</div></div>
+    </div>
+    <div class="info a">
+      <strong>OS-CFAR vs CA-CFAR:</strong> CA-CFAR uses the <em>mean</em> of all reference cells as threshold. When multiple strong interferers sit inside the reference window, they inflate the mean → threshold spikes → real targets are masked. OS-CFAR sorts reference cells and picks the <strong>k-th order statistic</strong>, effectively discarding the top (N−k) outlier cells (likely interferers). Result: a stable threshold even in a dense interference environment, with far fewer missed detections.
+    </div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Signal + CA-CFAR vs OS-CFAR Threshold</span><span class="badge bc">COMPARISON</span></div>
+      <canvas id="c-cm" height="210"></canvas>
+    </div>
+    <div class="cgrid c2" style="margin-top:0.75rem">
+      <div class="card"><div class="card-hdr"><span class="card-title">CA-CFAR Detection Map</span><span class="badge br">MEAN</span></div><canvas id="c-cca" height="110"></canvas></div>
+      <div class="card"><div class="card-hdr"><span class="card-title">OS-CFAR Detection Map</span><span class="badge bg">ORDER STAT</span></div><canvas id="c-cos" height="110"></canvas></div>
+    </div>
+    <div class="legend" style="margin-top:0.6rem">
+      <div class="li"><div class="ld" style="background:#3a4a6a"></div>Signal</div>
+      <div class="li"><div class="ld" style="background:var(--accent2)"></div>CA-CFAR thr</div>
+      <div class="li"><div class="ld" style="background:var(--accent3)"></div>OS-CFAR thr</div>
+      <div class="li"><div class="ld" style="background:var(--accent4)"></div>True target</div>
+      <div class="li"><div class="ld" style="background:var(--accent)"></div>Interferer</div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 3: GHOST -->
+<div id="tab-ghost" class="panel">
+  <div class="ctrl">
+    <div class="sec">
+      <div class="sec-label">Victim Radar</div>
+      <div class="row"><label>Target Range (m)<span id="v-gr">25</span></label><input type="range" id="gr" min="5" max="80" value="25" step="1" oninput="lbl('v-gr',this.value);runGhost()"></div>
+      <div class="row"><label>Slope S₁ (MHz/µs)<span id="v-gs1">30.0</span></label><input type="range" id="gs1" min="25" max="35" value="30" step="0.1" oninput="lbl('v-gs1',(+this.value).toFixed(1));runGhost()"></div>
+      <div class="row"><label>Target RCS (dBsm)<span id="v-gc">10</span></label><input type="range" id="gc" min="0" max="20" value="10" step="1" oninput="lbl('v-gc',this.value);runGhost()"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-label">Aggressor Radar</div>
+      <div class="row"><label>Slope S₂ (MHz/µs)<span id="v-gs2">30.0</span></label><input type="range" id="gs2" min="25" max="35" value="30.0" step="0.1" oninput="lbl('v-gs2',(+this.value).toFixed(1));runGhost()"></div>
+      <div class="row"><label>Power (dB rel.)<span id="v-gp">0</span></label><input type="range" id="gp" min="-20" max="20" value="0" step="1" oninput="lbl('v-gp',this.value);runGhost()"></div>
+      <div class="row"><label>Timing Offset (%)<span id="v-go">30</span></label><input type="range" id="go" min="0" max="80" value="30" step="5" oninput="lbl('v-go',this.value);runGhost()"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-label">Display</div>
+      <div class="tog-row"><span>Ghost Marker</span><button class="tog on" id="t-gm" onclick="tog(this);runGhost()"></button></div>
+      <div class="tog-row"><span>True Target Marker</span><button class="tog on" id="t-tm" onclick="tog(this);runGhost()"></button></div>
+      <div class="tog-row"><span>Coherent Mode</span><button class="tog on" id="t-co" onclick="tog(this);runGhost()"></button></div>
+    </div>
+    <button class="run" onclick="runGhost()">▶ RUN</button>
+  </div>
+  <div class="viz">
+    <div class="metrics">
+      <div class="mbox"><div class="mlabel">Slope Diff ΔS</div><div class="mval" id="m-gds">—</div></div>
+      <div class="mbox"><div class="mlabel">Ghost Range</div><div class="mval r" id="m-ggr">—</div></div>
+      <div class="mbox"><div class="mlabel">Ghost Amplitude</div><div class="mval a" id="m-gga">—</div></div>
+      <div class="mbox"><div class="mlabel">Mode</div><div class="mval g" id="m-gmo">—</div></div>
+    </div>
+    <div class="info r">
+      <strong>Ghost Target / Coherent Interference:</strong> When S₁ ≈ S₂ (slopes nearly identical), the aggressor's beat signal after de-ramping becomes a <strong>near-constant-frequency tone</strong> — indistinguishable from a genuine target echo. This "phantom obstacle" appears at a range set by the aggressor's timing offset τ_agg: <strong>R_ghost = c·S₁·τ_agg / (2·S₁) = c·τ_agg/2</strong>. Set ΔS → 0 via the sliders to maximize ghost strength. The ΔS sweep chart shows the rapid ghost attenuation as slopes diverge.
+    </div>
+    <div class="cgrid c2">
+      <div class="card"><div class="card-hdr"><span class="card-title">Beat Signal — Time Domain</span><span class="badge ba">COHERENT BURST</span></div><canvas id="c-gt" height="170"></canvas></div>
+      <div class="card"><div class="card-hdr"><span class="card-title">ΔS Sweep: Ghost Amplitude</span><span class="badge bc">ANALYSIS</span></div><canvas id="c-gs" height="170"></canvas></div>
+    </div>
+    <div class="card" style="margin-top:0.75rem">
+      <div class="card-hdr"><span class="card-title">Range Profile — Real vs Ghost Target</span><span class="badge br">GHOST PEAK</span></div>
+      <canvas id="c-gr" height="200"></canvas>
+    </div>
+    <div class="legend" style="margin-top:0.6rem">
+      <div class="li"><div class="ld" style="background:var(--accent3)"></div>True target only</div>
+      <div class="li"><div class="ld" style="background:var(--accent)"></div>Combined (victim sees)</div>
+      <div class="li"><div class="ld" style="background:var(--accent2)"></div>Ghost peak</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── UTILITIES ────────────────────────────────────────────────
+const lbl=(id,v)=>document.getElementById(id).textContent=v;
+const tog=el=>el.classList.toggle('on');
+const on=id=>document.getElementById(id).classList.contains('on');
+const val=id=>+document.getElementById(id).value;
+
+function sw(name,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  document.getElementById('tab-'+name).classList.add('on');
+  btn.classList.add('on');
+}
+
+// ── MATH ─────────────────────────────────────────────────────
+function fft(re,im){
+  const N=re.length;if(N<=1)return;
+  const h=N>>1,re_e=new Float64Array(h),im_e=new Float64Array(h),re_o=new Float64Array(h),im_o=new Float64Array(h);
+  for(let i=0;i<h;i++){re_e[i]=re[2*i];im_e[i]=im[2*i];re_o[i]=re[2*i+1];im_o[i]=im[2*i+1];}
+  fft(re_e,im_e);fft(re_o,im_o);
+  for(let k=0;k<h;k++){
+    const a=-2*Math.PI*k/N,wr=Math.cos(a),wi=Math.sin(a),tr=wr*re_o[k]-wi*im_o[k],ti=wr*im_o[k]+wi*re_o[k];
+    re[k]=re_e[k]+tr;im[k]=im_e[k]+ti;re[k+h]=re_e[k]-tr;im[k+h]=im_e[k]-ti;
+  }
+}
+const np2=n=>{let p=1;while(p<n)p<<=1;return p;};
+const randn=()=>Math.sqrt(-2*Math.log(Math.random()+1e-15))*Math.cos(2*Math.PI*Math.random());
+const dB=v=>20*Math.log10(Math.abs(v)+1e-12);
+const mag=(re,im)=>Math.sqrt(re*re+im*im);
+
+function magArr(re,im){return re.map((r,i)=>Math.sqrt(r*r+im[i]*im[i]));}
+function magdBArr(re,im){return magArr(re,im).map(v=>20*Math.log10(v+1e-12));}
+
+// Jet colormap
+function jet(v){
+  v=Math.max(0,Math.min(1,v));
+  const r=Math.min(1,Math.max(0,1.5-Math.abs(4*v-3)));
+  const g=Math.min(1,Math.max(0,1.5-Math.abs(4*v-2)));
+  const b=Math.min(1,Math.max(0,1.5-Math.abs(4*v-1)));
+  return[Math.round(r*255),Math.round(g*255),Math.round(b*255)];
+}
+
+// Canvas helpers
+function initCanvas(id,h){
+  const c=document.getElementById(id);
+  c.width=c.offsetWidth||500;c.height=h;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#050810';ctx.fillRect(0,0,c.width,h);
+  return{c,ctx,W:c.width,H:h};
+}
+
+function axes(ctx,W,H,pad,xl,yl,x0,x1,y0,y1){
+  ctx.strokeStyle='#1a2444';ctx.lineWidth=0.8;
+  ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,H-pad.b);
+  ctx.moveTo(pad.l,H-pad.b);ctx.lineTo(W-pad.r,H-pad.b);ctx.stroke();
+  ctx.fillStyle='#4a6080';ctx.font='9px JetBrains Mono';
+  const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
+  // x grid + labels
+  for(let i=0;i<=5;i++){
+    const xv=x0+(x1-x0)*i/5,px=pad.l+pw*i/5;
+    ctx.fillStyle='#0d1525';ctx.fillRect(px,pad.t,1,ph);
+    ctx.fillStyle='#4a6080';ctx.textAlign='center';
+    ctx.fillText(xv.toFixed(xv%1===0?0:1),px,H-pad.b+11);
+  }
+  // y grid + labels
+  for(let i=0;i<=4;i++){
+    const yv=y1-(y1-y0)*i/4,py=pad.t+ph*i/4;
+    ctx.fillStyle='#0d1525';ctx.fillRect(pad.l,py,pw,1);
+    ctx.fillStyle='#4a6080';ctx.textAlign='right';
+    ctx.fillText(yv.toFixed(0),pad.l-3,py+3);
+  }
+  ctx.fillStyle='#4a6080';ctx.textAlign='center';
+  ctx.fillText(xl,pad.l+pw/2,H-1);
+  ctx.save();ctx.translate(9,pad.t+ph/2);ctx.rotate(-Math.PI/2);ctx.fillText(yl,0,0);ctx.restore();
+}
+
+function px(xv,x0,x1,pad,W){return pad.l+(xv-x0)/(x1-x0)*(W-pad.l-pad.r);}
+function py(yv,y0,y1,pad,H){return H-pad.b-(yv-y0)/(y1-y0)*(H-pad.t-pad.b);}
+
+function line(ctx,xs,ys,x0,x1,y0,y1,pad,W,H,col,lw=1.5){
+  ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();
+  for(let i=0;i<xs.length;i++){
+    const x=px(xs[i],x0,x1,pad,W),y=py(ys[i],y0,y1,pad,H);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }ctx.stroke();
+}
+
+// ── CONSTANTS ─────────────────────────────────────────────────
+const fs=100e6,Tc=100e-6,c=3e8,fc=77e9,NR=512,S1_base=30e6/1e-6;
+
+// ── TAB 1: RANGE-DOPPLER MAP ──────────────────────────────────
+function runRDM(){
+  const R=val('rr'),V=val('rv'),Nd=val('rc'),SIR_dB=val('rs');
+  const dSlope=val('rd')*1e6/1e-6,Nhit=Math.min(val('rh'),val('rc'));
+  const sigma=val('rt'),doStr=on('t-str'),doZer=on('t-zer'),doInt=on('t-int');
+  const S1=S1_base,S2=S1-dSlope;
+  const tau=2*R/c,bf=S1*tau,lam=c/fc,df=2*V/lam,PRF=1/Tc;
+  const SIR=Math.pow(10,SIR_dB/10);
+  const dt=Tc/NR;
+
+  // Build slow-time (chirp) × fast-time (sample) matrix
+  const Ndf=np2(Nd),Nrf=np2(NR);
+  const mat_re=new Float64Array(Nd*NR),mat_im=new Float64Array(Nd*NR);
+
+  for(let ch=0;ch<Nd;ch++){
+    const dp=2*Math.PI*df*ch*Tc;
+    // target beat
+    for(let i=0;i<NR;i++){
+      const t=i*dt;
+      if(t>=tau){
+        const ph=2*Math.PI*(S1*tau*t-0.5*S1*tau*tau)+dp;
+        mat_re[ch*NR+i]=Math.cos(ph);mat_im[ch*NR+i]=Math.sin(ph);
+      }
+    }
+    // aggressor
+    if(ch<Nhit){
+      const toff=Tc*0.3,rph=2*Math.PI*Math.random(),sc=1/Math.sqrt(SIR);
+      for(let i=0;i<NR;i++){
+        const t=i*dt;
+        if(t>=toff){
+          const ph=2*Math.PI*(0.5*(S1-S2)*t*t-(S1-S2)*toff*t+S2*toff*t-0.5*S2*toff*toff)+rph;
+          mat_re[ch*NR+i]+=sc*Math.cos(ph);mat_im[ch*NR+i]+=sc*Math.sin(ph);
+        }
+      }
+    }
+    // noise + Hann
+    for(let i=0;i<NR;i++){
+      const w=0.5*(1-Math.cos(2*Math.PI*i/NR));
+      mat_re[ch*NR+i]=(mat_re[ch*NR+i]+0.04*randn())*w;
+      mat_im[ch*NR+i]=(mat_im[ch*NR+i]+0.04*randn())*w;
+    }
+  }
+
+  // Range FFT per chirp
+  const rng_re=new Float64Array(Nd*Nrf),rng_im=new Float64Array(Nd*Nrf);
+  for(let ch=0;ch<Nd;ch++){
+    const re=new Float64Array(Nrf),im=new Float64Array(Nrf);
+    for(let i=0;i<NR;i++){re[i]=mat_re[ch*NR+i];im[i]=mat_im[ch*NR+i];}
+    fft(re,im);
+    for(let i=0;i<Nrf;i++){rng_re[ch*Nrf+i]=re[i];rng_im[ch*Nrf+i]=im[i];}
+  }
+
+  // Doppler FFT per range bin
+  const rdm_re=new Float64Array(Ndf*Nrf),rdm_im=new Float64Array(Ndf*Nrf);
+  for(let rb=0;rb<Nrf;rb++){
+    const re=new Float64Array(Ndf),im=new Float64Array(Ndf);
+    for(let ch=0;ch<Nd;ch++){
+      const w=0.5*(1-Math.cos(2*Math.PI*ch/Nd));
+      re[ch]=rng_re[ch*Nrf+rb]*w;im[ch]=rng_im[ch*Nrf+rb]*w;
+    }
+    fft(re,im);
+    for(let d=0;d<Ndf;d++){rdm_re[d*Nrf+rb]=re[d];rdm_im[d*Nrf+rb]=im[d];}
+  }
+
+  // Magnitude (dB)
+  const half_r=Nrf/2,rdm_mag=new Float32Array(Ndf*half_r);
+  let mxN=-1e9,mnN=1e9;
+  for(let d=0;d<Ndf;d++)for(let r=0;r<half_r;r++){
+    const m=20*Math.log10(mag(rdm_re[d*Nrf+r],rdm_im[d*Nrf+r])+1e-12);
+    rdm_mag[d*half_r+r]=m;if(m>mxN)mxN=m;if(m<mnN)mnN=m;
+  }
+
+  // Streak detection: column mean vs threshold
+  const col_mean=new Float32Array(half_r);
+  for(let r=0;r<half_r;r++){
+    let s=0;for(let d=0;d<Ndf;d++)s+=rdm_mag[d*half_r+r];col_mean[r]=s/Ndf;
+  }
+  const mu=col_mean.reduce((a,b)=>a+b,0)/half_r;
+  const sd=Math.sqrt(col_mean.reduce((a,b)=>a+(b-mu)**2,0)/half_r);
+  const thr=mu+sigma*sd;
+
+  const clean_re=new Float64Array(rdm_re),clean_im=new Float64Array(rdm_im);
+  const mask=new Uint8Array(Ndf*half_r);
+  let sc=0;
+  for(let r=0;r<half_r;r++){
+    if(doStr && col_mean[r]>thr){sc++;
+      for(let d=0;d<Ndf;d++){mask[d*half_r+r]=1;if(doZer){clean_re[d*Nrf+r]=0;clean_im[d*Nrf+r]=0;}}
+    }
+  }
+  if(doInt && doStr){
+    for(let r=1;r<half_r-1;r++)if(col_mean[r]>thr)
+      for(let d=0;d<Ndf;d++){
+        clean_re[d*Nrf+r]=0.5*(clean_re[d*Nrf+r-1]+clean_re[d*Nrf+r+1]);
+        clean_im[d*Nrf+r]=0.5*(clean_im[d*Nrf+r-1]+clean_im[d*Nrf+r+1]);
+      }
+  }
+
+  const rdm_clean=new Float32Array(Ndf*half_r);let mxC=-1e9;
+  for(let d=0;d<Ndf;d++)for(let r=0;r<half_r;r++){
+    const m=20*Math.log10(mag(clean_re[d*Nrf+r],clean_im[d*Nrf+r])+1e-12);
+    rdm_clean[d*half_r+r]=m;if(m>mxC)mxC=m;
+  }
+
+  const tgt_rbin=Math.round(bf/(fs/Nrf));
+  const tgt_dbin=((Math.round(df/(PRF/Ndf))+Ndf)%Ndf);
+
+  // Draw RDM heatmap
+  function drawHM(id,mag2d,vmax,H){
+    const{c,ctx,W}=initCanvas(id,H);
+    const pad={l:35,r:8,t:8,b:22};
+    const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
+    const vmin=vmax-55;
+    const img=ctx.createImageData(pw,ph);
+    for(let d=0;d<Ndf;d++)for(let r=0;r<half_r;r++){
+      const bx=Math.floor(r/half_r*pw),by=Math.floor(d/Ndf*ph);
+      if(bx>=pw||by>=ph)continue;
+      const[cr,cg,cb]=jet((mag2d[d*half_r+r]-vmin)/(vmax-vmin));
+      const idx=(by*pw+bx)*4;img.data[idx]=cr;img.data[idx+1]=cg;img.data[idx+2]=cb;img.data[idx+3]=255;
+    }
+    ctx.putImageData(img,pad.l,pad.t);
+    // Target crosshair
+    const tx=pad.l+Math.floor(tgt_rbin/half_r*pw),ty=pad.t+Math.floor(tgt_dbin/Ndf*ph);
+    ctx.strokeStyle='#ffaa00';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(tx,ty,5,0,2*Math.PI);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(tx-9,ty);ctx.lineTo(tx+9,ty);ctx.moveTo(tx,ty-9);ctx.lineTo(tx,ty+9);ctx.stroke();
+    ctx.fillStyle='#4a6080';ctx.font='9px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText('Range bin →',pad.l+pw/2,H-2);
+    ctx.save();ctx.translate(9,pad.t+ph/2);ctx.rotate(-Math.PI/2);ctx.fillText('Doppler →',0,0);ctx.restore();
+  }
+  drawHM('c-rb',rdm_mag,mxN,210);
+  drawHM('c-ra',rdm_clean,mxC,210);
+
+  // Draw mask
+  {const{c,ctx,W,H}=initCanvas('c-rm',160);
+  const pad={l:35,r:8,t:8,b:22};const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
+  const img=ctx.createImageData(pw,ph);
+  for(let d=0;d<Ndf;d++)for(let r=0;r<half_r;r++){
+    const bx=Math.floor(r/half_r*pw),by=Math.floor(d/Ndf*ph);
+    if(bx>=pw||by>=ph)continue;
+    const idx=(by*pw+bx)*4;
+    if(mask[d*half_r+r]){img.data[idx]=255;img.data[idx+1]=63;img.data[idx+2]=108;img.data[idx+3]=255;}
+    else{img.data[idx]=15;img.data[idx+1]=22;img.data[idx+2]=40;img.data[idx+3]=255;}
+  }
+  ctx.putImageData(img,pad.l,pad.t);
+  ctx.fillStyle='#4a6080';ctx.font='9px JetBrains Mono';ctx.textAlign='center';
+  ctx.fillText('Range bin →',pad.l+pw/2,H-2);}
+
+  // Range profile
+  {const{c,ctx,W,H}=initCanvas('c-rp',160);
+  const pad={l:42,r:8,t:10,b:22};
+  const pN=new Float32Array(half_r),pC=new Float32Array(half_r);
+  for(let r=0;r<half_r;r++){
+    let sN=0,sC=0;
+    for(let d=0;d<Ndf;d++){sN+=rdm_mag[d*half_r+r];sC+=rdm_clean[d*half_r+r];}
+    pN[r]=sN/Ndf;pC[r]=sC/Ndf;
+  }
+  const ymax=Math.max(...pN)+3,ymin=ymax-50;
+  const xs=Array.from({length:half_r},(_,i)=>i);
+  axes(ctx,W,H,pad,'Range Bin','dB',0,half_r,ymin,ymax);
+  line(ctx,xs,[...pN],0,half_r,ymin,ymax,pad,W,H,'#ff3f6c',1.3);
+  line(ctx,xs,[...pC],0,half_r,ymin,ymax,pad,W,H,'#39ff7a',1.5);
+  const tx=px(tgt_rbin,0,half_r,pad,W),ty=py(pC[tgt_rbin]||ymax-5,ymin,ymax,pad,H);
+  ctx.fillStyle='#ffaa00';ctx.font='bold 8px JetBrains Mono';ctx.textAlign='center';ctx.fillText('▼TGT',tx,ty-2);}
+
+  // Metrics
+  let nN=0,nC=0,cnt=0;
+  for(let r=0;r<half_r;r++)if(Math.abs(r-tgt_rbin)>8){nN+=rdm_mag[0*half_r+r];nC+=rdm_clean[0*half_r+r];cnt++;}
+  const snrG=cnt>0?(nN-nC)/cnt:0;
+  document.getElementById('m-rr').textContent=R+'m';
+  document.getElementById('m-rv').textContent=V+'m/s';
+  document.getElementById('m-rs').textContent=sc+' bins';
+  document.getElementById('m-rn').textContent=snrG.toFixed(1)+' dB';
+}
+
+// ── TAB 2: OS-CFAR ───────────────────────────────────────────
+function runCFAR(){
+  const Nint=val('cn'),SIR_dB=val('cs'),noise_dB=val('cn2');
+  const Win=val('cw'),Guard=val('cg'),Pfa=val('cp')*1e-4;
+  const os_k=val('cr')/100,os_a=val('ca');
+  const N=256,nf=Math.pow(10,noise_dB/20);
+  const sig=new Float32Array(N);
+
+  // Noise
+  for(let i=0;i<N;i++)sig[i]=nf*Math.abs(randn());
+
+  // True targets
+  const T=[45,125,195],TA=[8,5,3];
+  T.forEach((b,i)=>sig[b]+=TA[i]*nf*45);
+
+  // Interferers
+  const I=[];const used=new Set(T.flatMap(b=>[b-2,b-1,b,b+1,b+2]));
+  const SIR=Math.pow(10,SIR_dB/10);
+  let tries=0;
+  while(I.length<Nint&&tries++<1000){
+    const p=10+Math.floor(Math.random()*(N-20));
+    if(!used.has(p)){I.push(p);used.add(p);sig[p]+=nf/Math.sqrt(SIR)*80;}
+  }
+
+  const Nr=Win*2;
+  const alpha_ca=Nr*(Math.pow(Pfa,-1/Nr)-1);
+  const ca_thr=new Float32Array(N),os_thr=new Float32Array(N);
+  const ca_det=new Uint8Array(N),os_det=new Uint8Array(N);
+
+  for(let k=Win+Guard;k<N-Win-Guard;k++){
+    const ref=[];
+    for(let j=k-Win-Guard;j<=k+Win+Guard;j++){
+      if(j<0||j>=N||Math.abs(j-k)<=Guard)continue;
+      ref.push(sig[j]);
+    }
+    const ca_est=ref.reduce((a,b)=>a+b,0)/ref.length;
+    ca_thr[k]=alpha_ca*ca_est;
+    const sorted=[...ref].sort((a,b)=>a-b);
+    const ki=Math.min(Math.floor(os_k*sorted.length),sorted.length-1);
+    os_thr[k]=os_a*sorted[ki];
+    ca_det[k]=sig[k]>ca_thr[k]?1:0;
+    os_det[k]=sig[k]>os_thr[k]?1:0;
+  }
+
+  // Metrics
+  let ca_d=0,ca_f=0,os_d=0,os_f=0;
+  const tset=new Set(T.flatMap(b=>[b-1,b,b+1]));
+  for(let i=0;i<N;i++){
+    if(ca_det[i])tset.has(i)?ca_d++:ca_f++;
+    if(os_det[i])tset.has(i)?os_d++:os_f++;
+  }
+  document.getElementById('m-cad').textContent=ca_d;
+  document.getElementById('m-caf').textContent=ca_f;
+  document.getElementById('m-osd').textContent=os_d;
+  document.getElementById('m-osf').textContent=os_f;
+
+  // Main chart
+  {const{c,ctx,W,H}=initCanvas('c-cm',210);
+  const pad={l:44,r:12,t:12,b:26};
+  const sd=Array.from(sig).map(v=>20*Math.log10(v+1e-12));
+  const cd=Array.from(ca_thr).map(v=>20*Math.log10(v+1e-12));
+  const od=Array.from(os_thr).map(v=>20*Math.log10(v+1e-12));
+  const valid=v=>isFinite(v)&&v>-200;
+  const all=[...sd,...cd.filter(valid),...od.filter(valid)];
+  const ymax=Math.max(...all)+4,ymin=ymax-70;
+  const xs=Array.from({length:N},(_,i)=>i);
+  axes(ctx,W,H,pad,'Range Bin','Amplitude (dB)',0,N,ymin,ymax);
+  // fill
+  ctx.fillStyle='rgba(58,74,106,0.2)';ctx.beginPath();
+  ctx.moveTo(px(0,0,N,pad,W),H-pad.b);
+  for(let i=0;i<N;i++)ctx.lineTo(px(i,0,N,pad,W),py(sd[i],ymin,ymax,pad,H));
+  ctx.lineTo(px(N-1,0,N,pad,W),H-pad.b);ctx.closePath();ctx.fill();
+  line(ctx,xs,sd,0,N,ymin,ymax,pad,W,H,'#3a4a6a',1);
+  // CA dashed
+  ctx.strokeStyle='#ff3f6c';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);ctx.beginPath();
+  let first=true;
+  for(let i=0;i<N;i++){if(!valid(cd[i]))continue;const x=px(i,0,N,pad,W),y=py(cd[i],ymin,ymax,pad,H);first?(ctx.moveTo(x,y),first=false):ctx.lineTo(x,y);}
+  ctx.stroke();ctx.setLineDash([]);
+  line(ctx,xs.filter(i=>valid(od[i])),xs.filter(i=>valid(od[i])).map(i=>od[i]),0,N,ymin,ymax,pad,W,H,'#39ff7a',1.5);
+  T.forEach(b=>{ctx.strokeStyle='#ffaa00';ctx.lineWidth=1;ctx.beginPath();ctx.arc(px(b,0,N,pad,W),py(sd[b],ymin,ymax,pad,H),5,0,2*Math.PI);ctx.stroke();});
+  I.forEach(b=>{const x=px(b,0,N,pad,W),y=py(sd[b],ymin,ymax,pad,H);ctx.strokeStyle='#00d4ff';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x-4,y-4);ctx.lineTo(x+4,y+4);ctx.moveTo(x+4,y-4);ctx.lineTo(x-4,y+4);ctx.stroke();});}
+
+  // Detection maps
+  function detMap(id,det){
+    const{c,ctx,W,H}=initCanvas(id,110);
+    const pad={l:35,r:8,t:8,b:20};const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
+    ctx.fillStyle='#0d1525';ctx.fillRect(pad.l,pad.t,pw,ph);
+    for(let i=0;i<N;i++){
+      const bx=pad.l+i/N*pw,bw=Math.max(1,pw/N-0.3);
+      const isTgt=T.some(b=>Math.abs(b-i)<=1);
+      if(det[i]){ctx.fillStyle=isTgt?'#39ff7a':'#ff3f6c';ctx.fillRect(bx,pad.t+4,bw,ph-8);}
+    }
+    T.forEach(b=>{const x=pad.l+b/N*pw;ctx.strokeStyle='rgba(255,170,0,0.4)';ctx.lineWidth=1;ctx.setLineDash([2,2]);ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,H-pad.b);ctx.stroke();ctx.setLineDash([]);});
+    ctx.fillStyle='#4a6080';ctx.font='9px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText('Range bin',pad.l+pw/2,H-2);
+  }
+  detMap('c-cca',ca_det);detMap('c-cos',os_det);
+}
+
+// ── TAB 3: GHOST TARGETS ─────────────────────────────────────
+function runGhost(){
+  const R=val('gr'),S1=val('gs1')*1e6/1e-6,S2=val('gs2')*1e6/1e-6;
+  const apwr=Math.pow(10,val('gp')/20),off=val('go')/100;
+  const rcs=Math.pow(10,val('gc')/10);
+  const showG=on('t-gm'),showT=on('t-tm'),coh=on('t-co');
+  const tau=2*R/c,bf_true=S1*tau,toff=Tc*off,dt=Tc/NR;
+  const dS=S1-S2;
+
+  const br=new Float64Array(NR),bi=new Float64Array(NR);
+  const ar=new Float64Array(NR),ai=new Float64Array(NR);
+  const cr=new Float64Array(NR),ci=new Float64Array(NR);
+  const ta=Math.sqrt(rcs);
+
+  for(let i=0;i<NR;i++){
+    const t=i*dt;
+    if(t>=tau){
+      const ph=2*Math.PI*(S1*tau*t-0.5*S1*tau*tau);
+      br[i]=ta*Math.cos(ph);bi[i]=ta*Math.sin(ph);
+    }
+    if(t>=toff){
+      let ph;
+      if(coh) ph=2*Math.PI*(dS*toff*t-0.5*dS*toff*toff+(S2-S1)*toff*t+S1*toff*t);
+      else ph=2*Math.PI*(0.5*dS*t*t-dS*toff*t+S2*toff*t-0.5*S2*toff*toff);
+      ar[i]=apwr*Math.cos(ph);ai[i]=apwr*Math.sin(ph);
+    }
+    const n=0.025;
+    cr[i]=br[i]+ar[i]+n*randn();ci[i]=bi[i]+ai[i]+n*randn();
+  }
+
+  // FFT
+  const Nf=np2(NR)*2;
+  const ft_re=new Float64Array(Nf),ft_im=new Float64Array(Nf),fc_re=new Float64Array(Nf),fc_im=new Float64Array(Nf);
+  for(let i=0;i<NR;i++){
+    const w=0.5*(1-Math.cos(2*Math.PI*i/NR));
+    ft_re[i]=br[i]*w;ft_im[i]=bi[i]*w;fc_re[i]=cr[i]*w;fc_im[i]=ci[i]*w;
+  }
+  fft(ft_re,ft_im);fft(fc_re,fc_im);
+  const pt=magdBArr(ft_re,ft_im).slice(0,Nf/2);
+  const pc=magdBArr(fc_re,fc_im).slice(0,Nf/2);
+  const rax=Array.from({length:Nf/2},(_,i)=>i*(fs/Nf)*c/(2*S1));
+  const Rm=120,Rd=rax.findIndex(r=>r>Rm)||Nf/2;
+  const true_bin=Math.round(bf_true/(fs/Nf));
+  const ghost_bf=coh?Math.abs(S1*toff):Math.abs(S2*toff-S1*toff);
+  const ghost_bin=Math.round(ghost_bf/(fs/Nf));
+  const ghost_range=ghost_bin<rax.length?rax[ghost_bin]:0;
+  const ghost_amp=ghost_bin<Nf/2?pc[ghost_bin]:-99;
+
+  document.getElementById('m-gds').textContent=(dS/1e12).toFixed(3)+' THz/s';
+  document.getElementById('m-ggr').textContent=ghost_range.toFixed(1)+'m';
+  document.getElementById('m-gga').textContent=ghost_amp.toFixed(1)+'dB';
+  document.getElementById('m-gmo').textContent=coh?'COHERENT':'NON-COH';
+
+  // Time domain
+  {const{c,ctx,W,H}=initCanvas('c-gt',170);
+  const pad={l:44,r:10,t:10,b:24};
+  const allv=[...cr,...ci];const ym=Math.max(...allv.map(Math.abs))*1.4;
+  const tus=Array.from({length:NR},(_,i)=>i*dt*1e6);
+  axes(ctx,W,H,pad,'Time (µs)','Amplitude',0,Tc*1e6,-ym,ym);
+  line(ctx,tus,[...br],0,Tc*1e6,-ym,ym,pad,W,H,'rgba(57,255,122,0.4)',1);
+  line(ctx,tus,[...cr],0,Tc*1e6,-ym,ym,pad,W,H,'#00d4ff',1.5);
+  const ox=px(toff*1e6,0,Tc*1e6,pad,W);
+  ctx.strokeStyle='rgba(255,170,0,0.5)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(ox,pad.t);ctx.lineTo(ox,H-pad.b);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#ffaa00';ctx.font='8px JetBrains Mono';ctx.textAlign='left';ctx.fillText('agg→',ox+2,pad.t+10);}
+
+  // Range profile
+  {const{c,ctx,W,H}=initCanvas('c-gr',200);
+  const pad2={l:44,r:12,t:12,b:26};
+  const sub_t=pt.slice(0,Rd),sub_c=pc.slice(0,Rd),rx=rax.slice(0,Rd);
+  const ymax=Math.max(...sub_c)+4,ymin=ymax-70;
+  axes(ctx,W,H,pad2,'Range (m)','dB',0,Rm,ymin,ymax);
+  line(ctx,rx,sub_t,0,Rm,ymin,ymax,pad2,W,H,'rgba(57,255,122,0.6)',1.5);
+  line(ctx,rx,sub_c,0,Rm,ymin,ymax,pad2,W,H,'#00d4ff',2);
+  if(showT&&true_bin<Rd){
+    const x=px(rax[true_bin],0,Rm,pad2,W),y=py(sub_c[true_bin],ymin,ymax,pad2,H);
+    ctx.strokeStyle='#39ff7a';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y,5,0,2*Math.PI);ctx.stroke();
+    ctx.fillStyle='#39ff7a';ctx.font='bold 8px JetBrains Mono';ctx.textAlign='center';ctx.fillText('REAL',x,y-8);
+  }
+  if(showG&&ghost_bin>0&&ghost_bin<Rd&&ghost_bin!==true_bin){
+    const x=px(rax[ghost_bin],0,Rm,pad2,W),y=py(sub_c[ghost_bin],ymin,ymax,pad2,H);
+    ctx.strokeStyle='#ff3f6c';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y,5,0,2*Math.PI);ctx.stroke();
+    ctx.fillStyle='#ff3f6c';ctx.font='bold 8px JetBrains Mono';ctx.textAlign='center';ctx.fillText('GHOST',x,y-8);
+  }}
+
+  // ΔS sweep
+  {const{c,ctx,W,H}=initCanvas('c-gs',170);
+  const pad={l:44,r:12,t:10,b:24};
+  const dsv=Array.from({length:40},(_,i)=>i/39*5);// 0 to 5 MHz/µs
+  const gamps=dsv.map(ds=>{
+    const bwf=ds*1e6/1e-6*Tc;
+    const amp=apwr/Math.max(1,bwf/0.4);
+    return 20*Math.log10(amp+1e-9);
+  });
+  const ymax=Math.max(...gamps)+4,ymin=Math.min(...gamps)-4;
+  axes(ctx,W,H,pad,'ΔS (MHz/µs)','Ghost Amp (dB)',0,5,ymin,ymax);
+  line(ctx,dsv,gamps,0,5,ymin,ymax,pad,W,H,'#ff3f6c',2);
+  const curDS=Math.abs(dS)/1e12;
+  const curAmp=gamps[Math.min(39,Math.round(curDS/5*39))];
+  const cx=px(curDS,0,5,pad,W),cy2=py(curAmp,ymin,ymax,pad,H);
+  ctx.fillStyle='#ffaa00';ctx.beginPath();ctx.arc(cx,cy2,4,0,2*Math.PI);ctx.fill();
+  ctx.fillStyle='#4a6080';ctx.font='8px JetBrains Mono';ctx.textAlign='left';
+  ctx.fillText('Peak ghost at ΔS=0',pad.l+4,pad.t+12);}
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+window.addEventListener('load',()=>{setTimeout(()=>{runRDM();runCFAR();runGhost();},200);});
+window.addEventListener('resize',()=>{
+  const a=document.querySelector('.panel.on');
+  if(a.id==='tab-rdm')runRDM();
+  else if(a.id==='tab-cfar')runCFAR();
+  else runGhost();
+});
+</script>
+</body>
+</html>
